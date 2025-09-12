@@ -82,7 +82,7 @@ if rcall("EXISTS", KEYS[3]) == 1 then -- // Make sure job exists
 
     if numRemovedElements < 1 then return -3 end
 
-    if KEYS[10] and KEYS[10] ~= "" then
+    if ARGV[14] == "count" and KEYS[10] and KEYS[10] ~= "" then
         decrementRateLimiter(KEYS[10], ARGV[1], ARGV[13], ARGV[14])
     end
 

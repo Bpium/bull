@@ -1,6 +1,8 @@
 .PHONY: build
 
 build:
+	@echo "🔹 git pull..."
+	git pull
 	@echo "🔹 clean proc..."
 	npm run clean:scripts
 	@echo "🔹 remove raw scripts"
