@@ -54,7 +54,7 @@ local function decrementRateLimiter(rateLimiterKey, jobId, hasGroupKey, mode)
         local actualRateLimiterKey = rateLimiterKey
 
         -- Rate limit by group?
-        if hasGroupKey == "true" then
+        if hasGroupKey and (hasGroupKey == "true" or hasGroupKey == true) then
             local group = string.match(jobId, "[^:]+$")
             if group ~= nil then
                 actualRateLimiterKey = rateLimiterKey .. ":" .. group
@@ -64,12 +64,20 @@ local function decrementRateLimiter(rateLimiterKey, jobId, hasGroupKey, mode)
         local counterKey = actualRateLimiterKey .. ":counter"
 
         -- Decrement the counter
-        local currentCount = tonumber(rcall("GET", counterKey)) or 0
-        if currentCount > 0 then
-            rcall("DECRBY", counterKey, 1)
+        if rcall("EXISTS", counterKey) > 0 then
+            local currentCount = tonumber(rcall("GET", counterKey)) or 0
+            if currentCount > 0 then
+                rcall("DECRBY", counterKey, 1)
+                -- local newCount = rcall("DECRBY", counterKey, 1)
+                -- -- Удаляем ключ, так как могут быть мертвые ключи?
+                -- if newCount <= 0 then
+                --     rcall("DEL", counterKey)
+                -- end
+            end
         end
     end
 end
+
 
 if rcall("EXISTS", KEYS[3]) == 1 then -- // Make sure job exists
     local errorCode = removeLock(KEYS[3], KEYS[8], ARGV[5], ARGV[1])
@@ -79,10 +87,10 @@ if rcall("EXISTS", KEYS[3]) == 1 then -- // Make sure job exists
 
     -- Remove from active list (if not active we shall return error)
     local numRemovedElements = rcall("LREM", KEYS[1], -1, ARGV[1])
-
     if numRemovedElements < 1 then return -3 end
 
-    if ARGV[14] == "count" and KEYS[10] and KEYS[10] ~= "" then
+    local mode = ARGV[14]
+    if mode == "count" and KEYS[10] and KEYS[10] ~= "" then
         decrementRateLimiter(KEYS[10], ARGV[1], ARGV[13], ARGV[14])
     end
 
