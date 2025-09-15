@@ -50,6 +50,7 @@ local function rateLimit(jobId, maxJobs, mode)
             if group ~= nil then
                 rateLimiterKey = rateLimiterKey .. ":" .. group
             end
+        end
     end
 
     -- New logic for the counter mode

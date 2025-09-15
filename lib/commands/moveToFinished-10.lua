@@ -128,7 +128,7 @@ if rcall("EXISTS", KEYS[3]) == 1 then -- // Make sure job exists
     else
         local jobLogKey = KEYS[3] .. ':logs'
         rcall("DEL", KEYS[3], jobLogKey)
-    end
+    end -- This was the missing 'end' for the 'if maxCount ~= 0 then' block
 
     -- Collect metrics
     if ARGV[12] ~= "" then
