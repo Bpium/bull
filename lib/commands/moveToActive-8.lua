@@ -34,6 +34,10 @@
 local rcall = redis.call
 
 local function rateLimit(jobId, maxJobs, mode)
+    if maxJobs == 0 then
+        -- Лимит 0 → воспринимаем как "нет лимита"? Ситуация по сути не валидная
+        return false
+    end
     local rateLimiterKey = KEYS[6]
     local limiterIndexTable = rateLimiterKey .. ":index"
 
