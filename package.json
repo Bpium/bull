@@ -23,7 +23,7 @@
   "dependencies": {
     "cron-parser": "^4.9.0",
     "get-port": "^5.1.1",
-    "ioredis": "^3.2.0",
+    "ioredis": "^4.27.0",
     "lodash": "^4.17.21",
     "msgpackr": "^1.11.2",
     "semver": "^7.5.2",
