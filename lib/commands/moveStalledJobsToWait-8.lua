@@ -10,11 +10,14 @@
 
       KEYS[6] 'meta-paused', (KEY)
       KEYS[7] 'paused', (LIST)
+      KEYS[8] rate limiter key (для декремента)
 
       ARGV[1]  Max stalled job count
       ARGV[2]  queue.toKey('')
       ARGV[3]  timestamp
       ARGV[4]  max check time
+      ARGV[5]  rate limit group key (optional)
+      ARGV[6]  rate limit mode ( optional)
 
     Events:
       'stalled' with stalled job id.
@@ -26,6 +29,32 @@ local rcall = redis.call
 --- @include "includes/batches"
 --- @include "includes/getTargetQueueList"
 --- @include "includes/removeDebounceKeyIfNeeded"
+
+-- Function to decrement rate limiter counter (copied from moveToFinished)
+local function decrementRateLimiter(rateLimiterKey, jobId, hasGroupKey, mode)
+    if mode == "count" and rateLimiterKey and rateLimiterKey ~= "" then
+        -- Apply the same grouping logic as in moveToActive
+        local actualRateLimiterKey = rateLimiterKey
+
+        -- Rate limit by group?
+        if hasGroupKey and (hasGroupKey == "true" or hasGroupKey == true) then
+            local group = string.match(jobId, "[^:]+$")
+            if group ~= nil then
+                actualRateLimiterKey = rateLimiterKey .. ":" .. group
+            end
+        end
+
+        local counterKey = actualRateLimiterKey .. ":counter"
+
+        -- Decrement the counter
+        if rcall("EXISTS", counterKey) > 0 then
+            local currentCount = tonumber(rcall("GET", counterKey)) or 0
+            if currentCount > 0 then
+                rcall("DECRBY", counterKey, 1)
+            end
+        end
+    end
+end
 
 local function removeJob(jobId, baseKey)
   local jobKey = baseKey .. jobId
@@ -87,6 +116,12 @@ if(#stalling > 0) then
             "finishedOn", ARGV[3])
           removeDebounceKeyIfNeeded(ARGV[2], jobAttributes[2])
           rcall("PUBLISH", KEYS[4],  '{"jobId":"' .. jobId .. '", "val": "job stalled more than maxStalledCount"}')
+
+          -- Decrement rate limiter in stalled jobs
+          local mode = ARGV[6]
+          if mode == "count" and KEYS[8] and KEYS[8] ~= "" then
+              decrementRateLimiter(KEYS[8], jobId, ARGV[5], ARGV[6])
+          end
 
           if removeOnFailType == "number" then
             removeJobsByMaxCount(opts["removeOnFail"],
