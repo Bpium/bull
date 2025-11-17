@@ -49,10 +49,6 @@ local rcall = redis.call
 --- @include "includes/decrementRateLimiter"
 
 if rcall("EXISTS", KEYS[3]) == 1 then -- // Make sure job exists
-    -- before delete and catch errpr we need decrement counter for job
-
-    decrementRateLimiter(KEYS[10], ARGV[1], ARGV[13], ARGV[14])
-
     local errorCode = removeLock(KEYS[3], KEYS[8], ARGV[5], ARGV[1])
     if errorCode < 0 then
         -- The slot has already been released (the decrement has been made)
@@ -62,12 +58,13 @@ if rcall("EXISTS", KEYS[3]) == 1 then -- // Make sure job exists
 
     -- remove from active
     local numRemovedElements = rcall("LREM", KEYS[1], -1, ARGV[1])
-    -- Эта проверка теперь избыточна, но оставляем для безопасности
+    
     if numRemovedElements < 1 then 
-        -- Теоретически сюда не должны попасть, т.к. проверили LPOS выше
-        -- Но если попали - счётчик уже декрементирован, что корректно
         return -3 
     end
+
+    -- fix: decrement after success remove from the active only
+    decrementRateLimiter(KEYS[10], ARGV[1], ARGV[13], ARGV[14])
 
     local debounceId = rcall("HGET", KEYS[3], "deid")
     if debounceId then
@@ -111,7 +108,7 @@ if rcall("EXISTS", KEYS[3]) == 1 then -- // Make sure job exists
     else
         local jobLogKey = KEYS[3] .. ':logs'
         rcall("DEL", KEYS[3], jobLogKey)
-    end -- This was the missing 'end' for the 'if maxCount ~= 0 then' block
+    end
 
     -- Collect metrics
     if ARGV[12] ~= "" then
